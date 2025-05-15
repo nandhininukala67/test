@@ -1,3 +1,38 @@
+@Service
+public class KycLimitHistoryService {
+
+    @Autowired
+    private KycLimitHistoryRepository kycLimitHistoryRepository;
+
+    public void saveFromKycLimit(KycLimit kycLimit) {
+        KycLimitHistory history = new KycLimitHistory();
+
+        history.setOriginalId(kycLimit.getId());
+        history.setType(kycLimit.getType());
+        history.setCapacityLimit(kycLimit.getCapacityLimit());
+        history.setPerDayLoadLimit(kycLimit.getPerDayLoadLimit());
+        history.setPerDayUnLoadLimit(kycLimit.getPerDayUnLoadLimit());
+        history.setPerDayTrfInwardLimit(kycLimit.getPerDayTrfInwardLimit());
+        history.setPerDayTfrOutwardLimit(kycLimit.getPerDayTfrOutwardLimit());
+        history.setTxnLoadCount(kycLimit.getTxnLoadCount());
+        history.setTxnLTfrInwardCount(kycLimit.getTxnLTfrInwardCount());
+        history.setTxnUnloadCount(kycLimit.getTxnUnloadCount());
+        history.setTxnTrfOutwardCount(kycLimit.getTxnTrfOutwardCount());
+        history.setCoolingLimit(kycLimit.isCoolingLimit());
+        history.setPerTransaction(kycLimit.getPerTransaction());
+        history.setMonthlyTrfOutwardLimit(kycLimit.getMonthlyTrfOutwardLimit());
+        history.setMonthlyTrfOutwardCount(kycLimit.getMonthlyTrfOutwardCount());
+        history.setLimitType(kycLimit.getLimitType());
+        history.setActive("N"); // marking as inactive history
+        history.setArchivedAt(LocalDateTime.now());
+
+        kycLimitHistoryRepository.save(history);
+    }
+}
+
+
+
+
 @Path("/kycAdd")
 @POST
 @AuthPermission(value = {BaseService.MANAGE_PERMISSION})
