@@ -1,3 +1,104 @@
+@Path("/kycAdd")
+@POST
+@AuthPermission(value = {BaseService.MANAGE_PERMISSION})
+public Response kycAdd(List<KycLimit> kycLimit) {
+    Map<String, Object> resp = new LinkedHashMap<>();
+    KycLimitManager kycLimitManager = getManager();
+
+    for (KycLimit dtoLimit : kycLimit) {
+        KycLimit existingLimit = kycLimitManager.getByID(dtoLimit.getId());
+        if (!isChanged(existingLimit, dtoLimit)) {
+            return error(Response.Status.NOT_MODIFIED, "Not Changed");
+        }
+    }
+
+    for (KycLimit dtoLimit : kycLimit) {
+        KycLimit existingLimit = kycLimitManager.getByID(dtoLimit.getId());
+        String kycConfig = "";
+
+        if (existingLimit != null && !existingLimit.getType().isEmpty()) {
+            kycConfig = "kyc." + existingLimit.getType().toLowerCase() + "." + existingLimit.getLimitType().toLowerCase() + ".";
+        } else {
+            resp.put(JSON_KEY_MSG, "KYC Format is Invalid");
+            resp.put(JSON_KEY_SUCCESS, Boolean.FALSE);
+            return Response.ok(resp, MediaType.APPLICATION_JSON).build();
+        }
+
+        if (validateRequest(dtoLimit, kycConfig, resp)) {
+            return Response.ok(resp, MediaType.APPLICATION_JSON).build();
+        }
+
+        // ✅ Archive the existing record
+        KycLimitHistory history = new KycLimitHistory();
+        history.setOriginalId(existingLimit.getId());
+        history.setType(existingLimit.getType());
+        history.setLimitType(existingLimit.getLimitType());
+        history.setCapacityLimit(existingLimit.getCapacityLimit());
+        history.setPerDayLoadLimit(existingLimit.getPerDayLoadLimit());
+        history.setPerDayUnLoadLimit(existingLimit.getPerDayUnLoadLimit());
+        history.setPerDayTrfInwardLimit(existingLimit.getPerDayTrfInwardLimit());
+        history.setPerDayTfrOutwardLimit(existingLimit.getPerDayTfrOutwardLimit());
+        history.setTxnLoadCount(existingLimit.getTxnLoadCount());
+        history.setTxnLTfrInwardCount(existingLimit.getTxnLTfrInwardCount());
+        history.setTxnUnloadCount(existingLimit.getTxnUnloadCount());
+        history.setTxnTrfOutwardCount(existingLimit.getTxnTrfOutwardCount());
+        history.setMonthlyTrfOutwardCount(existingLimit.getMonthlyTrfOutwardCount());
+        history.setPerTransaction(existingLimit.getPerTransaction());
+        history.setActive("N");
+        history.setArchivedAt(LocalDateTime.now()); // ✅ capture current date and time
+
+        // Save history
+        getDB().saveOrUpdate(history);
+
+        // ✅ Update the original entity
+        existingLimit.setCapacityLimit(dtoLimit.getCapacityLimit());
+        existingLimit.setPerDayLoadLimit(dtoLimit.getPerDayLoadLimit());
+        existingLimit.setPerDayUnLoadLimit(dtoLimit.getPerDayUnLoadLimit());
+        existingLimit.setPerDayTrfInwardLimit(dtoLimit.getPerDayTrfInwardLimit());
+        existingLimit.setPerDayTfrOutwardLimit(dtoLimit.getPerDayTfrOutwardLimit());
+        existingLimit.setTxnLoadCount(dtoLimit.getTxnLoadCount());
+        existingLimit.setTxnLTfrInwardCount(dtoLimit.getTxnLTfrInwardCount());
+        existingLimit.setTxnUnloadCount(dtoLimit.getTxnUnloadCount());
+        existingLimit.setTxnTrfOutwardCount(dtoLimit.getTxnTrfOutwardCount());
+        existingLimit.setPerTransaction(dtoLimit.getPerTransaction());
+        existingLimit.setMonthlyTrfOutwardCount(dtoLimit.getMonthlyTrfOutwardCount());
+
+        getDB().saveOrUpdate(existingLimit);
+
+        // Send to switch (optional)
+        if (StringUtils.equals(existingLimit.getLimitType(), KYC_LIMIT_TYPE_NORMAL)) {
+            sendToRTSPSwitch(dtoLimit);
+        }
+
+        resp.put(JSON_KEY_MSG, "Kyc Limit Updated and Archived Successfully.");
+        resp.put(JSON_KEY_SUCCESS, Boolean.TRUE);
+    }
+
+    return Response.ok(resp, MediaType.APPLICATION_JSON).build();
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 @Service
 public class KycLimitHistoryService {
 
